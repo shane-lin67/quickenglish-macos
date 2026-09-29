@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f5f7;
+      --card: rgba(255,255,255,.9);
+      --field: #fff;
+      --text: #19191c;
+      --muted: #73737b;
+      --line: rgba(20,20,30,.11);
+      --accent: #2f6df6;
+      --accent-hover: #245ed9;
+      --green: #18864b;
+      --orange: #b25d00;
+      --red: #cf2f2f;
+      --shadow: 0 12px 30px rgba(0,0,0,.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #202023;
+        --card: rgba(46,46,50,.92);
+        --field: #2a2a2e;
+        --text: #f4f4f5;
+        --muted: #a7a7ae;
+        --line: rgba(255,255,255,.12);
+        --accent: #5b8cff;
+        --accent-hover: #74a0ff;
+        --green: #4dcc83;
+        --orange: #ffad4b;
+        --red: #ff6b6b;
+        --shadow: 0 15px 34px rgba(0,0,0,.35);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: default; }
+    .app { height: 100%; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .top { display: flex; align-items: center; gap: 12px; }
+    .heading { flex: 1; min-width: 0; }
+    h1 { margin: 0; font-size: 17px; line-height: 1.2; letter-spacing: -.25px; }
+    .subtitle { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .icon-button {
+      border: 1px solid var(--line); background: var(--card); color: var(--text);
+      border-radius: 7px; height: 27px; padding: 0 9px; font-size: 12px;
+    }
+    .mode-row { display: flex; align-items: center; gap: 8px; }
+    .mode-row > .label { display: none; }
+    .label { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .segments { width: 100%; display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--card); }
+    .segment { flex: 1; height: 27px; min-width: 0; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px; }
+    .segment:last-child { border-right: 0; }
+    .segment.active { background: var(--accent); color: white; }
+    .context {
+      width: 100%; height: 29px; border: 1px solid var(--line); border-radius: 7px;
+      background: var(--field); color: var(--text); padding: 0 10px; outline: none;
+    }
+    .context:focus, textarea:focus, .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+    .editors { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 7px; }
+    .editor { min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+    .editor-head { display: flex; align-items: center; justify-content: space-between; }
+    .hint { color: var(--muted); font-size: 11px; }
+    textarea {
+      flex: 1; min-height: 64px; width: 100%; resize: none; border: 1px solid var(--line);
+      border-radius: 8px; background: var(--field); color: var(--text); padding: 8px 9px;
+      font-size: 14px; line-height: 1.42; outline: none;
+    }
+    #output { color: var(--text); }
+    .actions { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+    .status { flex: 1; min-width: 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status.success { color: var(--green); }
+    .status.warning { color: var(--orange); }
+    .status.error { color: var(--red); }
+    .button { height: 30px; border-radius: 7px; padding: 0 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+    .button.primary { background: var(--accent); border-color: transparent; color: white; font-weight: 600; min-width: 112px; }
+    .button.primary:hover { background: var(--accent-hover); }
+    .button:disabled { opacity: .45; }
+    .spinner { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+    .running .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.32); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 10; }
+    .overlay.open { display: flex; }
+    .modal { width: min(500px, 100%); max-height: 100%; overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 15px; backdrop-filter: blur(20px); }
+    .modal h2 { margin: 0; font-size: 18px; }
+    .modal-note { color: var(--muted); font-size: 11px; line-height: 1.4; margin: 5px 0 11px; }
+    .form { display: grid; grid-template-columns: 68px 1fr; gap: 8px; align-items: center; }
+    .form-label { text-align: right; font-size: 12px; font-weight: 600; }
+    .form-input, .form-select { width: 100%; height: 29px; border: 1px solid var(--line); border-radius: 7px; background: var(--field); color: var(--text); padding: 0 8px; outline: none; }
+    .check-row { grid-column: 2; display: flex; align-items: center; gap: 7px; }
+    .settings-message { min-height: 16px; color: var(--red); font-size: 11px; margin-top: 10px; }
+    .key-help { margin: 9px 0 0 78px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .key-help a { color: var(--accent); text-decoration: none; }
+    .recovery-row { margin: 8px 0 0 78px; display: flex; align-items: center; gap: 8px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="top">
+      <div class="heading">
+        <h1>写中文，得到地道英文</h1>
+        <div class="subtitle">适合帖子、回复和评论 · 结果可自动复制</div>
+      </div>
+      <button class="icon-button" id="settingsButton">设置接口</button>
+    </header>
+
+    <div class="mode-row">
+      <span class="label">写作模式</span>
+      <div class="segments" id="segments">
+        <button class="segment active" data-mode="naturalPost">自然帖文</button>
+        <button class="segment" data-mode="shortComment">简短评论</button>
+        <button class="segment" data-mode="faithful">忠实翻译</button>
+      </div>
+    </div>
+
+    <input class="context" id="context" placeholder="可选：补充语境，例如“回复客户，语气友好”">
+
+    <section class="editors">
+      <div class="editor">
+        <div class="editor-head"><span class="label">中文</span><span class="hint">⌘ Enter 生成</span></div>
+        <textarea id="input" spellcheck="false" placeholder="在这里写中文……"></textarea>
+      </div>
+      <div class="editor">
+        <div class="editor-head"><span class="label">英文</span><span class="hint">生成后可直接粘贴</span></div>
+        <textarea id="output" readonly placeholder="英文结果会出现在这里"></textarea>
+      </div>
+    </section>
+
+    <footer class="actions">
+      <span class="spinner"></span>
+      <span class="status" id="status">就绪 · Control + Option + E 随时呼出</span>
+      <button class="button" id="clearButton">清空</button>
+      <button class="button" id="copyButton" disabled>复制</button>
+      <button class="button primary" id="translateButton">生成&nbsp; ⌘↩</button>
+    </footer>
+  </main>
+
+  <div class="overlay" id="settingsOverlay">
+    <section class="modal">
+      <h2>选择你的英文模型</h2>
+      <p class="modal-note">支持 OpenAI 兼容的 Chat Completions 接口。API Key 只保存在这台 Mac 的用户专属配置中，文件权限为 600；Ollama 本机模型可不填 Key。</p>
+      <div class="form">
+        <label class="form-label">服务</label>
+        <select class="form-select" id="preset">
+          <option value="openai">OpenAI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="ollama">Ollama（本机）</option>
+          <option value="custom">自定义</option>
+        </select>
+        <label class="form-label">接口地址</label><input class="form-input" id="endpoint">
+        <label class="form-label">模型名称</label><input class="form-input" id="model">
+        <label class="form-label">API Key</label><input class="form-input" type="password" id="apiKey" autocomplete="off">
+        <label class="form-label">呼出快捷键</label>
+        <select class="form-select" id="shortcut">
+          <option value="controlOptionE">Control + Option + E</option>
+          <option value="commandShiftE">Command + Shift + E</option>
+          <option value="controlOptionReturn">Control + Option + Return</option>
+        </select>
+        <label class="check-row"><input type="checkbox" id="autoCopy" checked> 生成后自动复制到剪贴板</label>
+        <label class="check-row"><input type="checkbox" id="launchAtLogin"> 开机自动启动（顶部菜单栏显示“译”）</label>
+      </div>
+      <p class="key-help">DeepSeek API Key 管理页：<a href="https://platform.deepseek.com/api_keys" id="deepseekKeysLink">platform.deepseek.com/api_keys</a><br>这是管理网页，不是接口地址。</p>
+      <div class="recovery-row"><button class="button" id="recoverLegacyKey">从旧钥匙串恢复 API Key</button></div>
+      <div class="settings-message" id="settingsMessage"></div>
+      <div class="modal-actions">
+        <button class="button" id="cancelSettings">取消</button>
+        <button class="button primary" id="saveSettings">保存</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const app = $('app');
+    const input = $('input');
+    const output = $('output');
+    const status = $('status');
+    const translateButton = $('translateButton');
+    const copyButton = $('copyButton');
+    const settingsOverlay = $('settingsOverlay');
+    let mode = 'naturalPost';
+    let running = false;
+    let shortcutLabel = 'Control + Option + E';
+
+    function post(command, payload = {}) {
+      window.webkit.messageHandlers.app.postMessage({ command, ...payload });
+    }
+    function setStatus(text, kind = '') {
+      status.textContent = text;
+      status.className = `status ${kind}`;
+      status.title = text;
+    }
+    function labelForShortcut(value) {
+      if (value === 'commandShiftE') return 'Command + Shift + E';
+      if (value === 'controlOptionReturn') return 'Control + Option + Return';
+      return 'Control + Option + E';
+    }
+    function readyStatus() { return `就绪 · ${shortcutLabel} 随时呼出`; }
+    function setRunning(value) {
+      running = value;
+      app.classList.toggle('running', value);
+      translateButton.innerHTML = value ? '取消' : '生成&nbsp; ⌘↩';
+    }
+    function translate() {
+      if (running) { post('cancel'); return; }
+      const chinese = input.value.trim();
+      if (!chinese) { setStatus('先写一段中文', 'warning'); input.focus(); return; }
+      post('translate', { chinese, context: $('context').value, mode });
+    }
+    function detectPreset(endpoint) {
+      if (endpoint.includes('api.openai.com')) return 'openai';
+      if (endpoint.includes('api.deepseek.com')) return 'deepseek';
+      if (endpoint.includes('127.0.0.1:11434') || endpoint.includes('localhost:11434')) return 'ollama';
+      return 'custom';
+    }
+
+    $('segments').addEventListener('click', event => {
+      const button = event.target.closest('.segment');
+      if (!button) return;
+      mode = button.dataset.mode;
+      document.querySelectorAll('.segment').forEach(item => item.classList.toggle('active', item === button));
+    });
+    translateButton.addEventListener('click', translate);
+    $('copyButton').addEventListener('click', () => output.value && post('copy', { text: output.value }));
+    $('clearButton').addEventListener('click', () => {
+      input.value = ''; output.value = ''; $('context').value = ''; copyButton.disabled = true;
+      setStatus(readyStatus()); input.focus();
+    });
+    $('settingsButton').addEventListener('click', () => window.quickEnglish.openSettings({}));
+    $('cancelSettings').addEventListener('click', () => settingsOverlay.classList.remove('open'));
+    $('saveSettings').addEventListener('click', () => {
+      $('settingsMessage').textContent = '';
+      post('saveSettings', {
+        endpoint: $('endpoint').value,
+        model: $('model').value,
+        apiKey: $('apiKey').value,
+        autoCopy: $('autoCopy').checked,
+        shortcut: $('shortcut').value,
+        launchAtLogin: $('launchAtLogin').checked
+      });
+    });
+    $('preset').addEventListener('change', event => {
+      const preset = event.target.value;
+      if (preset === 'openai') {
+        $('endpoint').value = 'https://api.openai.com/v1/chat/completions'; $('model').value = 'gpt-4.1-mini';
+      } else if (preset === 'deepseek') {
+        $('endpoint').value = 'https://api.deepseek.com/chat/completions'; $('model').value = 'deepseek-v4-flash';
+      } else if (preset === 'ollama') {
+        $('endpoint').value = 'http://127.0.0.1:11434/v1/chat/completions'; $('model').value = 'qwen3:8b'; $('apiKey').value = '';
+      }
+    });
+    $('deepseekKeysLink').addEventListener('click', event => {
+      event.preventDefault();
+      post('openExternal', { url: 'https://platform.deepseek.com/api_keys' });
+    });
+    $('recoverLegacyKey').addEventListener('click', () => post('recoverLegacyKey'));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.metaKey) { event.preventDefault(); translate(); }
+      if (event.key === 'Escape') {
+        if (settingsOverlay.classList.contains('open')) settingsOverlay.classList.remove('open');
+        else post('hide');
+      }
+    });
+
+    window.quickEnglish = {
+      focusInput() { setTimeout(() => input.focus(), 30); },
+      onSettings(settings) {
+        $('endpoint').value = settings.endpoint || '';
+        $('model').value = settings.model || '';
+        $('apiKey').value = '';
+        $('apiKey').placeholder = settings.apiKeyConfigured ? '已保存；留空表示不更改' : '粘贴 API Key';
+        $('autoCopy').checked = settings.autoCopy !== false;
+        $('shortcut').value = settings.shortcut || 'controlOptionE';
+        shortcutLabel = labelForShortcut($('shortcut').value);
+        $('launchAtLogin').checked = settings.launchAtLogin === true;
+        setStatus(readyStatus());
+        $('preset').value = detectPreset(settings.endpoint || '');
+      },
+      openSettings(payload = {}) {
+        $('settingsMessage').textContent = payload.message || '';
+        settingsOverlay.classList.add('open');
+        setTimeout(() => $('preset').focus(), 30);
+      },
+      onSettingsError(payload) { $('settingsMessage').textContent = payload.message || '设置无效'; },
+      onSettingsSaved(payload = {}) {
+        $('apiKey').value = '';
+        if (payload.apiKeyConfigured) $('apiKey').placeholder = '已保存；留空表示不更改';
+        $('launchAtLogin').checked = payload.launchAtLogin === true;
+        $('shortcut').value = payload.shortcut || $('shortcut').value;
+        shortcutLabel = labelForShortcut($('shortcut').value);
+        settingsOverlay.classList.remove('open'); setStatus('设置已保存 ✓', 'success'); input.focus();
+      },
+      onLaunchAtLoginChanged(payload = {}) {
+        $('launchAtLogin').checked = payload.enabled === true;
+        setStatus(payload.enabled ? '已开启开机自动启动 ✓' : '已关闭开机自动启动', payload.enabled ? 'success' : '');
+      },
+      onLegacyKeyRecoveryStarted() {
+        $('recoverLegacyKey').disabled = true;
+        $('settingsMessage').style.color = 'var(--muted)';
+        $('settingsMessage').textContent = '请在 macOS 窗口输入登录密码，然后点“允许”……';
+      },
+      onLegacyKeyRecovered() {
+        $('recoverLegacyKey').disabled = false;
+        $('apiKey').value = '';
+        $('apiKey').placeholder = '已从旧钥匙串恢复';
+        $('settingsMessage').style.color = 'var(--green)';
+        $('settingsMessage').textContent = '旧 API Key 已恢复并安全保存 ✓';
+        setStatus('API Key 已恢复 ✓', 'success');
+      },
+      onLegacyKeyRecoveryError(payload) {
+        $('recoverLegacyKey').disabled = false;
+        $('settingsMessage').style.color = 'var(--red)';
+        $('settingsMessage').textContent = payload.message || '恢复失败';
+      },
+      onStart() { output.value = ''; copyButton.disabled = true; setRunning(true); setStatus('正在生成……'); },
+      onToken(payload) { output.value += payload.token || ''; output.scrollTop = output.scrollHeight; },
+      onResult(payload) {
+        setRunning(false); output.value = payload.text || output.value; copyButton.disabled = !output.value;
+        setStatus(payload.copied ? '已生成并复制 ✓' : '已生成 ✓', 'success');
+      },
+      onCopied() { setStatus('已复制 ✓', 'success'); },
+      onCancelled() { setRunning(false); setStatus('已取消'); },
+      onError(payload) { setRunning(false); setStatus(payload.message || '生成失败', 'error'); }
+    };
+    post('ready');
+  </script>
+</body>
+</html>
